@@ -1,0 +1,90 @@
+1 The priority inversion problem could cause that a higher-priority process needs to wait for the completion of a lower-priority process.
+
+1.1 Priority inheritance is one approach to address this issue. Please give another approach and briefly describe its idea.
+
+	There are various algorithms that are discussed on online-forums, (a) A priority ceiling (b) Random boosting.
+	sources: https://en.wikipedia.org/wiki/Priority_inversion#Solutions
+			 https://stackoverflow.com/questions/38468072/does-linux-use-some-of-the-solutions-of-priority-inversion
+	
+	(a) Priority ceiling: Here, the priority of a process is dynamically determined based on the highest-priority process that is using the lock. It is an algorithm used to avoid dead-locks and priority inversion problems. This is used incase of processes using a common resource.
+	
+	(b) Random boosting: This algorithm is used in Windows Operating system, wherein the process in the ready queue random gets its priority boosted if it has some higher-priority processes waiting for the same lock. This is also typically used to avoid priority inversion issues and dead-lock situation.
+	
+	But, in this I would like to explore the idea of goodness, which we implemented in PA1. There, we used a goodness value to control the scheduler which process gets the CPU. So, for rectifying priority-inversion, we can make use of goodness value of a process. For the process(referred as 'troubling_process' from here on) that is in the ready queue who is holding a lock and making other higher-priority processes to wait, the goodness value value for such a process can be boosted, so the original priority is unaffected. This way, that troubling_process gets more quantum and completes its execution faster. This will bring about the same effect as the priority inheritance.
+	The goodness value can be modified based on the priority of the highest-priority process in the waitlist.
+	
+		typically, goodness = floor(counter / 2) + process_priority. here, we can boost the goodness of the troubling_process by making use of the highest-priority of the process in waiting list. So new_goodness = floor(counter/2) + highest-priority.
+		
+		This can be a simpler and effective way to rectify priority-inversion problems.
+
+----------------------------------------------------------------------------------------------------------------------------------	
+1.2 Design a test case to show that your approach can address the priority inversion problem. You should compare the results that derived from the original XINU implementation (use semaphore) and that derived from your implementation (use readers/writer locks). Put your results in Lab3Answers.txt and your test case program (name it task1.c) in both ./sys and ./TMP
+
+	To showcase the issue with priority inversion, I am executing 3 processes, high_prio process, med_prio process and low_prio process. The test case is designed in a way that the low_prio process acquires the lock and the med_prio process is scheduled to calculate a value and then when the high_prio process requests for the same lock and now will sit inside the lock's waitlist. Without priority inheritance, the med_prio process will complete its execution before high_prio process even acquires the semaphore. This is the basic issue with priority inversion.
+	
+	Now this test case produces the following output:
+		Semaphores: it is easy to observe that the med_prio process is exiting its execution before high_prio process is executed.
+		
+		Locks with priority inheritance: In this case, it is observed that the med_prio process starts executing but as soon as it sleeps and main resumes the high_prio process and it is queued on the locks' waitlist. The priority of the low_prio process is boosted to the high_prio process, so that the scheduler now schedules the low_prio process before the med_prio process. This allows the low_prio process to complete its execution and release the lock and the high_prio process also completes its execution before med_prio process is scheduled and prints the value it has calculated.
+
+	-----------------------------------------
+	Output for priority inversion problem with Semaphores
+	
+	low_prio proc is about to acquire the semaphore
+	med_prio proc is executing
+	med_prio proc has calculated : 1265642605
+	med_prio proc is exiting its execution
+	high_prio proc is about to acquire the semaphore
+	low_prio proc is about to release the semaphore semaphore
+	low_prio proc released the semaphore
+	high_prio proc is about to release the semaphore semaphore
+	high_prio proc released the semaphore
+	
+	-----------------------------------------
+	Priority inversion test case with LOCKS(priority_inheritance)
+	
+	low_prio proc is about to acquire the lock
+	low_prio proc: Lock acquired.
+	med_prio proc is executing
+	low_prio proc is about to Release the lock.
+	low_prio proc released the lock
+	high_prio proc is about to acquire the lock
+	high_prio proc: Lock acquired.
+	high_prio proc is about to Release the lock.
+	high_prio proc released the lock
+	med_prio proc has calculated : 1265642605
+	med_prio proc is exiting its execution
+
+----------------------------------------------------------------------------------------------------------------------------------	
+2. Synchronization is a quite complex issue in operating systems. To show your understanding about process synchronization, you are asked to point out a reader/writer synchronization issue in this pesudo-code: task2_sync_issue.c. Multiple reader threads can execute this code concurrently by calling do_update. All the variables starting with global_ are global variables. You are asked to describe the potential issue caused by the incorrect synchronization and point out at least one possible thread interleaving that would trigger the problem. Put your answer in Lab3Answers.txt mentioned above.
+
+
+		int buffer_add (buffer_t *buf, const char *txt, int size)
+		{
+			int free = buf->size - buf->len;
+			if (size <= 0)
+				return OK;
+			if ( free < (size+1)) {
+					return ERROR;
+			}
+		I1 - memcpy (buf->buf + buf->len, txt, size); //1 -> this operation is copying the value from the value txt into buf.
+		I2 - buf->len += size;                        //2 -> this operation calculates the size of the buffer that was written
+		I3 - buf->buf[buf->len] = '\0';				 //      and the buffer is moved for the next reader to write its value.
+		
+			return OK;
+		}
+			
+		-> The main issue with this pseudo-code us that, the readers are actually updating a specific variable buf->buf which is an object to global_buf which is a global variable, so it is shared amongst the readers.
+		-> Since the reader are all allowed to share the execution of a critical region, there can be a case where a reader1 finishes doing memcpy and before it got a chance to move the buffer for the next process it got rescheduled due to timer.
+		-> Now the next reader2 will overwrite the value written by the reader1 and moves the buffer. After which when reader1 is rescheduled, it will move the buffer but already lost its value.
+		
+		Interleaving scenario:
+		Reader1 - acquires the lock.
+		Reader1 - completes execution until I2.
+		Reader2 - acquires the lock.
+		Reader2 - completes the execution fully
+		Reader2 - releases the lock
+		Reader1 - executes I2 and I3.
+		Reader1 - releases the lock.
+
+----------------------------------------------------------------------------------------------------------------------------------
