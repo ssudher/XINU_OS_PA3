@@ -112,7 +112,7 @@ In this case, the requesting process does not get the lock as *WRITE* locks are 
  * A priority field (lprio) indicating the maximum priority among all the processes waiting in the lock's wait queue.
  * A linked list/bitmask of the process ids of the processes currently holding the lock.
 
-#### *The actions to be performed in the following situations are:*
+#### *The actions to be performed in the following situations are*
 
 * **lock**: Suppose that the process P1 requests a lock. If the lock is available, then nothing needs to be done.
  * Otherwise, if the priority of the process (P2) holding the lock is no less than the priority of P1, then also nothing has to be done.
