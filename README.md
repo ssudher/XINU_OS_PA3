@@ -1,6 +1,6 @@
 # XINU_OS_Readers/Writer Locks with Priority Inheritance
 ## Introduction
-* In PA3, I implemented readers/writer locks as described in this handout. 
+* In this project, I implemented readers/writer locks as described below. 
 * Additionally, I implemented a priority inheritance mechanism to prevent the priority inversion problem when using locks.
  
 ## Reader/Writer Locks
