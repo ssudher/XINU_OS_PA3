@@ -6,7 +6,7 @@
 ## Reader/Writer Locks
 * Readers/writer locks are used to synchronize access to a shared data structure. 
 * A lock can be acquired for read or write operations. A lock acquired for reading can be shared by other readers, but a lock acquired for writing must be exclusive.
-* XINU provides a semaphore system (wait.c, signal.c, screate.c, sdelete.c, etc.) and use that as a basis for your locks. You should NOT modify the standard semaphore implementation, since semaphores are used in the rest of the kernel, e.g., in device drivers. 
+* XINU provides a semaphore system (wait.c, signal.c, screate.c, sdelete.c, etc.) and use that as a basis for your locks. Without modifying the standard semaphore implementation I have built the locks on top of these functions, since semaphores are used in the rest of the kernel, e.g., in device drivers. 
 * I extended the XINU semaphore to implement the readers/writer lock semantics.
 * Although, the standard semaphores implemented in XINU are quite useful, there are some issues with the XINU semaphores which we have addressed and fixed in this.
  * XINU semaphores do not distinguish between read accesses, which can co-exist, and write accesses, which must be exclusive.
@@ -47,7 +47,14 @@ acquire a lock and release multiple locks (lock and releaseall)
 * This will indicate to the user that the lock was deleted and not unlocked. As before, any calls to `lock()` after the lock is deleted should return `SYSERR`.
 * ***There is also another subtle but important point to note.*** 
 ```
-Consider the following scenario. Let us say that there are three processes A, B, and C.  Let A create a lock with descriptor=X. Let  A and B use  X to synchronize among themselves. Now, let us assume that A deletes the lock X. But B does not know about that. If, now, C tries to create a lock, there is a chance that it gets the same lock descriptor as that of X (lock descriptors are limited and hence can be reused). When B waits on X the next time, it should get a SYSERR. It should not acquire the lock C has now newly created, even if this lock has the same id as that of the previous one. You have to find a way to implement this facility, in addition to the DELETED issue above.
+Consider the following scenario.
+Let us say that there are three processes A, B, and C.  Let A create a lock with descriptor=X. 
+Let  A and B use  X to synchronize among themselves. Now, let us assume that A deletes the lock X. 
+But B does not know about that. If, now, C tries to create a lock, 
+there is a chance that it gets the same lock descriptor as that of X (lock descriptors are limited and hence can be reused). 
+When B waits on X the next time, it should get a SYSERR. 
+It should not acquire the lock C has now newly created, even if this lock has the same id as that of the previous one. 
+we need to find a way to implement this facility, in addition to the DELETED issue above.
 ```
 
 ### Locking Policy
